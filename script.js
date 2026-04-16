@@ -265,6 +265,7 @@ async function initializeBrowser() {
 
     // Handle navigation messages
     window.addEventListener('message', (e) => {
+        if (e.origin !== window.location.origin) return;
         if (e.data?.type === 'navigate') handleSubmit(e.data.url);
         if (e.data?.type === 'open-proxy-tab') openProxyTab(e.data.url);
     });
@@ -356,7 +357,7 @@ function createTab(makeActive = true) {
 function showIframeLoading(show, url = '') {
     const loader = document.getElementById("loading");
     if (loader) loader.style.display = "none";
-    getActiveTab()?.frame.frame.classList.toggle('loading', show);
+    getActiveTab()?.frame.frame.classList.remove('loading');
     const skipBtn = document.getElementById("skip-btn");
     if (skipBtn) skipBtn.style.display = 'none';
 }
@@ -465,20 +466,58 @@ function openProxyTab(url) {
 function installPopupInterception(tab) {
     const frameWindow = tab?.frame?.frame?.contentWindow;
     if (!frameWindow || frameWindow.__proxyPopupInterceptionInstalled) return;
+    try {
+        void frameWindow.location.href;
+    } catch {
+        return;
+    }
 
     const sendOpenMessage = (rawUrl) => {
         try {
-            const url = rawUrl ? new URL(rawUrl, frameWindow.location.href).href : '';
-            window.postMessage({ type: 'open-proxy-tab', url }, '*');
+            const resolved = rawUrl ? new URL(rawUrl, frameWindow.location.href) : null;
+            const url = resolved && (resolved.protocol === 'http:' || resolved.protocol === 'https:')
+                ? resolved.href
+                : '';
+            window.postMessage({ type: 'open-proxy-tab', url }, window.location.origin);
         } catch {
-            if (rawUrl) window.postMessage({ type: 'open-proxy-tab', url: String(rawUrl) }, '*');
+            // Ignore malformed or unsupported URLs
         }
     };
 
     try {
-        frameWindow.open = function (popupUrl) {
-            sendOpenMessage(popupUrl);
-            return frameWindow;
+        frameWindow.open = function (popupUrl, target, features) {
+            const targetValue = (target || '').toLowerCase();
+            const normalizedPopupUrl = typeof popupUrl === 'string'
+                ? popupUrl
+                : popupUrl instanceof URL
+                    ? popupUrl.href
+                    : '';
+
+            if (targetValue === '_self' || targetValue === '_top' || targetValue === '_parent') {
+                if (normalizedPopupUrl) frameWindow.location.href = normalizedPopupUrl;
+                return frameWindow;
+            }
+
+            void features;
+            sendOpenMessage(normalizedPopupUrl);
+
+            const popupProxy = {
+                closed: false,
+                focus() {},
+                blur() {},
+                close() { this.closed = true; },
+                location: {
+                    href: normalizedPopupUrl,
+                    assign(url) { sendOpenMessage(url); this.href = String(url ?? ''); },
+                    replace(url) { sendOpenMessage(url); this.href = String(url ?? ''); },
+                    reload() {}
+                }
+            };
+
+            popupProxy.opener = frameWindow;
+            return {
+                ...popupProxy
+            };
         };
     } catch {}
 
@@ -489,15 +528,35 @@ function installPopupInterception(tab) {
             event.preventDefault();
             sendOpenMessage(anchor.href);
         }, true);
+
+        frameWindow.document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof frameWindow.HTMLFormElement)) return;
+            const target = (form.getAttribute('target') || '').toLowerCase();
+            if (target !== '_blank' && target !== '_new') return;
+            event.preventDefault();
+
+            const actionUrl = new URL(form.action || frameWindow.location.href, frameWindow.location.href);
+            const method = (form.method || 'get').toLowerCase();
+            if (method === 'get') {
+                const params = new URLSearchParams(new FormData(form));
+                const paramsString = params.toString();
+                if (paramsString) actionUrl.search = actionUrl.search
+                    ? `${actionUrl.search}&${paramsString}`
+                    : paramsString;
+            }
+            sendOpenMessage(actionUrl.href);
+        }, true);
     } catch {}
 
     frameWindow.__proxyPopupInterceptionInstalled = true;
 }
 
 function handleSubmit(url, targetTab = getActiveTab()) {
-    const tab = targetTab;
-    const input = normalizeNavigationInput(url ?? document.getElementById("address-bar").value.trim());
-    navigateTab(tab, input);
+    const addressValue = document.getElementById("address-bar")?.value?.trim() || '';
+    const rawInput = (typeof url === 'string' && url.length > 0) ? url : addressValue;
+    const input = normalizeNavigationInput(rawInput);
+    navigateTab(targetTab, input);
 }
 
 function updateLoadingBar(tab, percent) {
