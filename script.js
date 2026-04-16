@@ -266,6 +266,7 @@ async function initializeBrowser() {
     // Handle navigation messages
     window.addEventListener('message', (e) => {
         if (e.data?.type === 'navigate') handleSubmit(e.data.url);
+        if (e.data?.type === 'open-proxy-tab') openProxyTab(e.data.url);
     });
 
     createTab(true);
@@ -339,6 +340,8 @@ function createTab(makeActive = true) {
             tab.favicon = null;
         }
 
+        installPopupInterception(tab);
+
         updateTabsUI();
         updateAddressBar();
         updateLoadingBar(tab, 100);
@@ -352,16 +355,10 @@ function createTab(makeActive = true) {
 
 function showIframeLoading(show, url = '') {
     const loader = document.getElementById("loading");
-    if (!loader) return;
-
-    loader.style.display = show ? "flex" : "none";
+    if (loader) loader.style.display = "none";
     getActiveTab()?.frame.frame.classList.toggle('loading', show);
-
-    if (show) {
-        document.getElementById("loading-title").textContent = "Connecting";
-        document.getElementById("loading-url").textContent = url || "Loading content...";
-        document.getElementById("skip-btn").style.display = 'none';
-    }
+    const skipBtn = document.getElementById("skip-btn");
+    if (skipBtn) skipBtn.style.display = 'none';
 }
 
 function switchTab(tabId) {
@@ -441,21 +438,66 @@ function updateAddressBar() {
     }
 }
 
-function handleSubmit(url) {
-    const tab = getActiveTab();
-    let input = url ?? document.getElementById("address-bar").value.trim();
-    if (!input) return;
+function normalizeNavigationInput(input) {
+    const value = (input ?? '').trim();
+    if (!value) return '';
+    if (value.startsWith('http')) return value;
+    return value.includes('.') && !value.includes(' ')
+        ? `https://${value}`
+        : `https://search.brave.com/search?q=${encodeURIComponent(value)}`;
+}
 
-    if (!input.startsWith('http')) {
-        input = input.includes('.') && !input.includes(' ') 
-            ? `https://${input}`
-            : `https://search.brave.com/search?q=${encodeURIComponent(input)}`;
-    }
-    
+function navigateTab(tab, input) {
+    if (!tab || !input) return;
     tab.loading = true;
     showIframeLoading(true, input);
     updateLoadingBar(tab, 10);
     tab.frame.go(input);
+}
+
+function openProxyTab(url) {
+    const input = normalizeNavigationInput(url);
+    if (!input) return;
+    const tab = createTab(true);
+    navigateTab(tab, input);
+}
+
+function installPopupInterception(tab) {
+    const frameWindow = tab?.frame?.frame?.contentWindow;
+    if (!frameWindow || frameWindow.__proxyPopupInterceptionInstalled) return;
+
+    const sendOpenMessage = (rawUrl) => {
+        try {
+            const url = rawUrl ? new URL(rawUrl, frameWindow.location.href).href : '';
+            window.postMessage({ type: 'open-proxy-tab', url }, '*');
+        } catch {
+            if (rawUrl) window.postMessage({ type: 'open-proxy-tab', url: String(rawUrl) }, '*');
+        }
+    };
+
+    try {
+        frameWindow.open = function (popupUrl) {
+            sendOpenMessage(popupUrl);
+            return frameWindow;
+        };
+    } catch {}
+
+    try {
+        frameWindow.document.addEventListener('click', (event) => {
+            const anchor = event.target?.closest?.('a[target="_blank"], a[target="_new"]');
+            if (!anchor || !anchor.href) return;
+            event.preventDefault();
+            sendOpenMessage(anchor.href);
+        }, true);
+    } catch {}
+
+    frameWindow.__proxyPopupInterceptionInstalled = true;
+}
+
+function handleSubmit(url, targetTab = getActiveTab()) {
+    const tab = targetTab;
+    const input = normalizeNavigationInput(url ?? document.getElementById("address-bar").value.trim());
+    navigateTab(tab, input);
 }
 
 function updateLoadingBar(tab, percent) {
