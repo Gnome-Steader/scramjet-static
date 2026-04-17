@@ -2,7 +2,14 @@
 // CONFIGURATION - Gets from config.js
 // =====================================================
 const DEFAULT_WISP = window.SITE_CONFIG?.defaultWisp ?? "wss://anura.pro/";
-const WISP_SERVERS = [{ name: "Standard Server", url: "wss://anura.pro/" }];
+const WISP_SERVERS = [
+    { name: "Standard Server", url: "wss://anura.pro/" },
+    { name: "Backup Server 1", url: "wss://gointospace.app/wisp/" },
+    { name: "Backup Server 2", url: "wss://glseries.net/wisp/" },
+    { name: "Backup Server 3", url: "wss://fern.best" },
+    { name: "Backup Server 4", url: "wss://wisp.mercurywork.shop" },
+    { name: "Backup Server 5", url: "wss://wisp.rhw.one" }
+];
 
 // Initialize default proxy server if not set
 if (!localStorage.getItem("proxServer")) {
@@ -631,13 +638,14 @@ async function checkServerHealth(url, element) {
 function setWisp(url) {
     const oldUrl = localStorage.getItem('proxServer');
     localStorage.setItem('proxServer', url);
+    localStorage.setItem('manualWispSwitchAt', Date.now().toString());
 
     if (oldUrl !== url) {
         const serverName = [...WISP_SERVERS, ...getStoredWisps()].find(s => s.url === url)?.name ?? 'Custom Server';
         notify('success', 'Proxy Changed', `Switching to ${serverName}...`);
     }
 
-    navigator.serviceWorker.controller?.postMessage({ type: 'config', wispurl: url });
+    navigator.serviceWorker.controller?.postMessage({ type: 'config', wispurl: url, manualswitch: true });
     setTimeout(() => location.reload(), 600);
 }
 
