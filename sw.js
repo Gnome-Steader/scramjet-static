@@ -93,7 +93,8 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 let wispConfig = {
     wispurl: null,
     servers: [],
-    autoswitch: true
+    autoswitch: true,
+    manualSwitchUntil: 0
 };
 
 // Server health tracking for autoswitching
@@ -101,6 +102,7 @@ let serverHealth = new Map();
 let currentServerStartTime = null;
 const MAX_CONSECUTIVE_FAILURES = 2;
 const PING_TIMEOUT = 3000;
+const MANUAL_SWITCH_GRACE_WINDOW_MS = 2 * 60 * 1000;
 
 let resolveConfigReady;
 const configReadyPromise = new Promise(resolve => resolveConfigReady = resolve);
@@ -178,6 +180,7 @@ function switchToServer(url, latency = null) {
 // Proactively check server health and switch if needed
 async function proactiveServerCheck() {
     if (!wispConfig.autoswitch || !wispConfig.servers || wispConfig.servers.length === 0) return;
+    if (Date.now() < wispConfig.manualSwitchUntil) return;
 
     const currentUrl = wispConfig.wispurl;
     
@@ -208,6 +211,10 @@ self.addEventListener("message", ({ data }) => {
             wispConfig.wispurl = data.wispurl;
             console.log("SW: Received wispurl", data.wispurl);
             currentServerStartTime = Date.now();
+            if (data.manualswitch) {
+                wispConfig.manualSwitchUntil = Date.now() + MANUAL_SWITCH_GRACE_WINDOW_MS;
+                serverHealth.set(data.wispurl, { consecutiveFailures: 0, successes: 0, lastSuccess: Date.now() });
+            }
         }
         if (data.servers && data.servers.length > 0) {
             wispConfig.servers = data.servers;
@@ -302,7 +309,7 @@ scramjet.addEventListener("request", async (e) => {
         updateServerHealth(wispConfig.wispurl, false);
 
         // Check if we should switch to a different server
-        if (wispConfig.autoswitch && wispConfig.servers && wispConfig.servers.length > 1) {
+        if (wispConfig.autoswitch && wispConfig.servers && wispConfig.servers.length > 1 && Date.now() >= wispConfig.manualSwitchUntil) {
             const currentHealth = serverHealth.get(wispConfig.wispurl);
             
             // Only switch if server has been unstable for a while
