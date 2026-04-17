@@ -227,14 +227,7 @@ async function initializeBrowser() {
             </div>
             <div class="loading-bar-container"><div class="loading-bar" id="loading-bar"></div></div>
             <div class="iframe-container" id="iframe-container">
-                <div id="loading" class="message-container" style="display: none;">
-                    <div class="message-content">
-                        <div class="spinner"></div>
-                        <h1 id="loading-title">Connecting</h1>
-                        <p id="loading-url">Initializing proxy...</p>
-                        <button id="skip-btn">Skip</button>
-                    </div>
-                </div>
+                <!-- Removed the connecting overlay (#loading) from here -->
                 <div id="error" class="message-container" style="display: none;">
                     <div class="message-content">
                         <h1>Connection Error</h1>
@@ -250,7 +243,7 @@ async function initializeBrowser() {
         fwdBtn: document.getElementById('fwd-btn'),
         reloadBtn: document.getElementById('reload-btn'),
         addrBar: document.getElementById('address-bar'),
-        skipBtn: document.getElementById('skip-btn')
+        // Removed skipBtn as the element is no longer in the DOM
     };
 
     // Bind navigation events
@@ -261,14 +254,8 @@ async function initializeBrowser() {
     document.getElementById('devtools-btn').onclick = toggleDevTools;
     document.getElementById('wisp-settings-btn').onclick = openSettings;
 
-    // Skip button logic
-    elements.skipBtn.onclick = () => {
-        const tab = getActiveTab();
-        if (tab) {
-            tab.loading = false;
-            showIframeLoading(false);
-        }
-    };
+    // Skip button logic has been removed since the button is gone
+    // elements.skipBtn.onclick = () => { /* ... */ };
 
     // Address bar events
     elements.addrBar.onkeyup = (e) => e.key === 'Enter' && handleSubmit();
@@ -293,9 +280,9 @@ function createTab(makeActive = true) {
         title: "New Tab",
         url: "NT.html",
         frame,
-        loading: false,
+        loading: false, // Keep this for the loading bar and iframe class
         favicon: null,
-        skipTimeout: null,
+        // Removed skipTimeout
         loadStartTime: null
     };
 
@@ -307,6 +294,7 @@ function createTab(makeActive = true) {
         tab.loadStartTime = Date.now();
 
         if (tab.id === activeTabId) {
+            // This function now only toggles the 'loading' class on the iframe, not the overlay
             showIframeLoading(true, tab.url);
         }
 
@@ -323,19 +311,15 @@ function createTab(makeActive = true) {
         updateAddressBar();
         updateLoadingBar(tab, 10);
 
-        if (tab.skipTimeout) clearTimeout(tab.skipTimeout);
-        tab.skipTimeout = setTimeout(() => {
-            if (tab.loading && tab.id === activeTabId) {
-                document.getElementById('skip-btn')?.style.setProperty('display', 'inline-block');
-            }
-        }, 200);
+        // Removed skipTimeout logic
     });
 
     frame.frame.addEventListener('load', () => {
         tab.loading = false;
-        clearTimeout(tab.skipTimeout);
+        // Removed clearTimeout(tab.skipTimeout);
 
         if (tab.id === activeTabId) {
+            // This function now only toggles the 'loading' class on the iframe, not the overlay
             showIframeLoading(false);
         }
 
@@ -361,18 +345,12 @@ function createTab(makeActive = true) {
     return tab;
 }
 
+// Simplified showIframeLoading: only toggles the 'loading' class on the iframe itself.
+// The overlay HTML and logic are entirely removed.
 function showIframeLoading(show, url = '') {
-    const loader = document.getElementById("loading");
-    if (!loader) return;
-
-    loader.style.display = show ? "flex" : "none";
+    // The #loading overlay element is removed, so we only toggle the class on the iframe
     getActiveTab()?.frame.frame.classList.toggle('loading', show);
-
-    if (show) {
-        document.getElementById("loading-title").textContent = "Connecting";
-        document.getElementById("loading-url").textContent = url || "Loading content...";
-        document.getElementById("skip-btn").style.display = 'none';
-    }
+    // No longer updating text content for an overlay that doesn't exist
 }
 
 function switchTab(tabId) {
@@ -382,13 +360,8 @@ function switchTab(tabId) {
     tabs.forEach(t => t.frame.frame.classList.toggle("hidden", t.id !== tabId));
 
     if (tab) {
-        showIframeLoading(tab.loading, tab.url);
-        
-        const skipBtn = document.getElementById('skip-btn');
-        if (tab.loading && tab.loadStartTime && skipBtn) {
-            const elapsed = Date.now() - tab.loadStartTime;
-            if (elapsed > 3000) skipBtn.style.display = 'inline-block';
-        }
+        showIframeLoading(tab.loading, tab.url); // This now only affects the iframe class
+        // Removed skip button related logic from here
     }
 
     updateTabsUI();
@@ -400,7 +373,7 @@ function closeTab(tabId) {
     if (idx === -1) return;
 
     const tab = tabs[idx];
-    clearTimeout(tab.skipTimeout);
+    // Removed clearTimeout(tab.skipTimeout);
     
     if (tab.frame?.frame) {
         tab.frame.frame.src = 'about:blank';
@@ -464,6 +437,7 @@ function handleSubmit(url) {
     }
     
     tab.loading = true;
+    // showIframeLoading now only toggles class on iframe
     showIframeLoading(true, input);
     updateLoadingBar(tab, 10);
     tab.frame.go(input);
