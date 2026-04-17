@@ -102,7 +102,7 @@ let serverHealth = new Map();
 let currentServerStartTime = null;
 const MAX_CONSECUTIVE_FAILURES = 2;
 const PING_TIMEOUT = 3000;
-const MANUAL_SWITCH_GRACE_MS = 120000;
+const MANUAL_SWITCH_GRACE_WINDOW_MS = 2 * 60 * 1000;
 
 let resolveConfigReady;
 const configReadyPromise = new Promise(resolve => resolveConfigReady = resolve);
@@ -212,7 +212,7 @@ self.addEventListener("message", ({ data }) => {
             console.log("SW: Received wispurl", data.wispurl);
             currentServerStartTime = Date.now();
             if (data.manualswitch) {
-                wispConfig.manualSwitchUntil = Date.now() + MANUAL_SWITCH_GRACE_MS;
+                wispConfig.manualSwitchUntil = Date.now() + MANUAL_SWITCH_GRACE_WINDOW_MS;
                 serverHealth.set(data.wispurl, { consecutiveFailures: 0, successes: 0, lastSuccess: Date.now() });
             }
         }
