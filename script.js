@@ -12,7 +12,7 @@ const WISP_SERVERS = [
     { name: "Backup server 6", url: "wss://dash.goip.de/wisp/" },
     { name: "Backup server 7", url: "wss://register.goip.it/wisp/" },
     { name: "Backup server 8", url: "wss://e.space.blocksi.lol.cdn.cloudflare.net/wisp/" },
-    { name: "Backup server 9", url: "https://aluu.xyz/wisp/" },
+    { name: "Backup server 9", url: "https://aluu.xyz/wisp/" }
 ];
 
 // Initialize default proxy server if not set
