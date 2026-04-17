@@ -638,7 +638,6 @@ async function checkServerHealth(url, element) {
 function setWisp(url) {
     const oldUrl = localStorage.getItem('proxServer');
     localStorage.setItem('proxServer', url);
-    localStorage.setItem('manualWispSwitchAt', Date.now().toString());
 
     if (oldUrl !== url) {
         const serverName = [...WISP_SERVERS, ...getStoredWisps()].find(s => s.url === url)?.name ?? 'Custom Server';
