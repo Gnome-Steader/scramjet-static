@@ -315,6 +315,25 @@ function createTab(makeActive = true) {
     });
 
     frame.frame.addEventListener('load', () => {
+            // --- Override window.open() inside proxied pages to use our proxy tabs ---
+    try {
+        const win = frame.frame.contentWindow;
+        if (win) {
+            const originalOpen = win.open;
+            win.open = function (url, target, features) {
+                if (url && typeof url === 'string') {
+                    // Route through our proxy tab system instead of a real browser tab
+                    window.postMessage({ type: 'navigate', url }, '*');
+                    return null; // Prevent real tab from opening
+                }
+                // Fallback to default if something custom was intended
+                return originalOpen.apply(this, arguments);
+            };
+        }
+    } catch (e) {
+        console.warn("Window open override failed:", e);
+    }
+
         tab.loading = false;
         // Removed clearTimeout(tab.skipTimeout);
 
