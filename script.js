@@ -1,18 +1,18 @@
 // =====================================================
 // CONFIGURATION - Gets from config.js
 // =====================================================
-const DEFAULT_WISP = window.SITE_CONFIG?.defaultWisp ?? "wss://anura.pro/";
+const DEFAULT_WISP = window.SITE_CONFIG?.defaultWisp ?? "wss://wisp.mercurywork.shop";
 const WISP_SERVERS = [
     { name: "Standard Server", url: "wss://anura.pro/" },
     { name: "Backup Server 1", url: "wss://gointospace.app/wisp/" },
     { name: "Backup Server 2", url: "wss://glseries.net/wisp/" },
     { name: "Backup Server 3", url: "wss://fern.best" },
-    { name: "Backup Server 4", url: "wss://wisp.mercurywork.shop" },
+    { name: "Backup Server 4", url: "wss://anura.pro/" },
     { name: "Backup Server 5", url: "wss://wisp.rhw.one" },
     { name: "Backup server 6", url: "wss://dash.goip.de/wisp/" },
     { name: "Backup server 7", url: "wss://register.goip.it/wisp/" },
     { name: "Backup server 8", url: "wss://e.space.blocksi.lol.cdn.cloudflare.net/wisp/" },
-    { name: "Backup server 9", url: "https://aluu.xyz/wisp/" }
+    { name: "Backup server 9", url: "wss://aluu.xyz/wisp/" }
 ];
 
 // Initialize default proxy server if not set
