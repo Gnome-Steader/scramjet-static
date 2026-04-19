@@ -3,7 +3,7 @@
 // =====================================================
 const DEFAULT_WISP = window.SITE_CONFIG?.defaultWisp ?? "wss://wisp.mercurywork.shop";
 const WISP_SERVERS = [
-    { name: "Standard Server", url: "wss://anura.pro/" },
+    { name: "Standard Server", url: "wss://wisp.mercurywork.shop" },
     { name: "Backup Server 1", url: "wss://gointospace.app/wisp/" },
     { name: "Backup Server 2", url: "wss://glseries.net/wisp/" },
     { name: "Backup Server 3", url: "wss://fern.best" },
